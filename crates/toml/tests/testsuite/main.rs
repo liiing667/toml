@@ -9,4 +9,5 @@ macro_rules! map( ($($k:expr => $v:expr),*) => ({
 
 mod macros;
 mod table;
+mod unicode_key;
 mod value;

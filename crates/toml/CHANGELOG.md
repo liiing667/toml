@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- *(parser)* Canonicalize keys to Unicode NFC so visually identical keys with different
+  normalization forms share one key identity instead of silently producing duplicate entries
+
 ## [1.2.3] - 2026-11-25
 
 ### Fixes

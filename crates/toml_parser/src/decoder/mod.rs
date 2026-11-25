@@ -16,6 +16,9 @@ pub(crate) mod scalar;
 pub(crate) mod string;
 pub(crate) mod ws;
 
+#[cfg(feature = "alloc")]
+pub(crate) mod normalize;
+
 pub use scalar::IntegerRadix;
 pub use scalar::ScalarKind;
 
@@ -45,6 +48,14 @@ pub trait StringBuilder<'s> {
     fn push_str(&mut self, append: &'s str) -> bool;
     #[must_use]
     fn push_char(&mut self, append: char) -> bool;
+    /// Append a string that does not borrow from the parser input.
+    ///
+    /// This is used for data that had to be allocated while decoding, such as NFC-canonicalized
+    /// keys.  Builders that only borrow from the parser input cannot retain these and must
+    /// report failure.
+    #[cfg(feature = "alloc")]
+    #[must_use]
+    fn push_owned(&mut self, _append: alloc::string::String) -> bool;
 }
 
 impl<'s> StringBuilder<'s> for () {
@@ -53,6 +64,10 @@ impl<'s> StringBuilder<'s> for () {
         true
     }
     fn push_char(&mut self, _append: char) -> bool {
+        true
+    }
+    #[cfg(feature = "alloc")]
+    fn push_owned(&mut self, _append: alloc::string::String) -> bool {
         true
     }
 }
@@ -70,6 +85,10 @@ impl<'s> StringBuilder<'s> for &'s str {
         }
     }
     fn push_char(&mut self, _append: char) -> bool {
+        false
+    }
+    #[cfg(feature = "alloc")]
+    fn push_owned(&mut self, _append: alloc::string::String) -> bool {
         false
     }
 }
@@ -99,6 +118,16 @@ impl<'s> StringBuilder<'s> for Cow<'s, str> {
         self.to_mut().push(append);
         true
     }
+    fn push_owned(&mut self, append: alloc::string::String) -> bool {
+        if let Cow::Borrowed(s) = self {
+            if s.is_empty() {
+                *self = Cow::Owned(append);
+                return true;
+            }
+        }
+        self.to_mut().push_str(&append);
+        true
+    }
 }
 
 #[cfg(feature = "alloc")]
@@ -112,6 +141,10 @@ impl<'s> StringBuilder<'s> for String {
     }
     fn push_char(&mut self, append: char) -> bool {
         self.push(append);
+        true
+    }
+    fn push_owned(&mut self, append: alloc::string::String) -> bool {
+        self.push_str(&append);
         true
     }
 }

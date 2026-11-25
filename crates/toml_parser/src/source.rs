@@ -97,6 +97,13 @@ impl<'i> Raw<'i> {
         let mut error = |err: crate::ParseError| {
             error.report_error(err.rebase_spans(self.span.start));
         };
+        // Canonicalize keys to NFC so visually identical keys with different Unicode
+        // normalization forms share one identity instead of silently creating duplicate entries.
+        #[cfg(feature = "alloc")]
+        let mut normalizing =
+            crate::decoder::normalize::NormalizingKeyBuilder::new(output, self.raw);
+        #[cfg(feature = "alloc")]
+        let output: &mut dyn StringBuilder<'i> = &mut normalizing;
         match self.encoding {
             Some(Encoding::LiteralString) => {
                 crate::decoder::string::decode_literal_string(*self, output, &mut error);
@@ -128,6 +135,8 @@ impl<'i> Raw<'i> {
             }
             None => crate::decoder::string::decode_unquoted_key(*self, output, &mut error),
         }
+        #[cfg(feature = "alloc")]
+        normalizing.finish(&mut error, self.span);
     }
 
     #[must_use]
